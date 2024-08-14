@@ -203,7 +203,7 @@ jobs:
       - name: "💛 上传 kernelpack"
         uses: actions/upload-artifact@v3
         with:
-          name: Image(${{ env.kernelDevice }}-${{ env.kernelName }}-${{ env.kernelBranch }})
+          name: kernelpack.zip
           path: ./${{ env.kernelDir }}/${{ env.OUT_DIR }}/kernelpack.zip
           if-no-files-found: ignore
           retention-days: 7
@@ -211,7 +211,7 @@ jobs:
       - name: "💛 上传 Image"
         uses: actions/upload-artifact@v3
         with:
-          name: Image(${{ env.kernelDevice }}-${{ env.kernelName }}-${{ env.kernelBranch }})
+          name: Image
           path: ./${{ env.kernelDir }}/${{ env.OUT_DIR }}/arch/${{ env.ARCH }}/boot/Image
           if-no-files-found: ignore
           retention-days: 7
@@ -219,7 +219,7 @@ jobs:
       - name: "💙 上传 Image.gz"
         uses: actions/upload-artifact@v3
         with:
-          name: Image.gz(${{ env.kernelDevice }}-${{ env.kernelName }}-${{ env.kernelBranch }})
+          name: Image.gz
           path: ./${{ env.kernelDir }}/${{ env.OUT_DIR }}/arch/${{ env.ARCH }}/boot/Image.gz
           if-no-files-found: ignore
           retention-days: 7
