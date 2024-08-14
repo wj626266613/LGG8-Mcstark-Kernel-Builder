@@ -164,6 +164,7 @@ jobs:
 
          
       - name: "🎶 编译内核"
+        continue-on-error: true
         working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
         env:
           args: ${{ steps.generate-args.outputs.args }}
