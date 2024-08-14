@@ -179,9 +179,9 @@ jobs:
           args: ${{ steps.generate-args.outputs.args }}
         run: |
           echo "PATH Variable: $PATH"
-          ls out/
+          ls ../out/
           ls -lh /usr/bin/dtc
-          cp -rf /usr/bin/dtc /home/runner/work/LGG8-Mcstark-Kernel-Builder/LGG8-Mcstark-Kernel-Builder/G8-OvO_dev/out/scripts/dtc/dtc
+          cp -rf /usr/bin/dtc  ../out/scripts/dtc/dtc
 
       - name: "🎶 编译内核-3nd"
         continue-on-error: true
