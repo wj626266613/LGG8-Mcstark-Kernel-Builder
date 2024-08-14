@@ -169,6 +169,9 @@ jobs:
         run: |
           echo "PATH Variable: $PATH"
           make ${args}
+          bash dtc.sh
+          make ${args}
+          bash lk.sh
 
       - name: "O(∩_∩)O-打包刷机包"
         working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
