@@ -198,13 +198,14 @@ jobs:
          git clone https://github.com/qwe28256/AnyKernel3-alphalm --depth=1 kernelpack
          cp -rf ../out/arch/arm64/boot/Image.gz kernelpack
          zip -r ../out/kernelpack.zip ./kernelpack/*
+         mv ./kernelpack ../out
          echo "Done"
 
       - name: "💛 上传 kernelpack"
         uses: actions/upload-artifact@v3
         with:
-          name: kernelpack.zip
-          path: ./${{ env.kernelDir }}/${{ env.OUT_DIR }}/kernelpack.zip
+          name: AnyKernel-v3-OvO-1
+          path: ./${{ env.kernelDir }}/${{ env.OUT_DIR }}/kernelpack
           if-no-files-found: ignore
           retention-days: 7
           
