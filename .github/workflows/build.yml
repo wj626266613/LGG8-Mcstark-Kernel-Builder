@@ -179,7 +179,8 @@ jobs:
           args: ${{ steps.generate-args.outputs.args }}
         run: |
           echo "PATH Variable: $PATH"
-          bash dtc.sh
+          ls out/
+          cp -rf /usr/bin/dtc out/scripts/dtc/dtc
 
       - name: "🎶 编译内核-3nd"
         continue-on-error: true
