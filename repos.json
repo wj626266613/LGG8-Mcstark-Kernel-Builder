@@ -3,7 +3,7 @@
       "name": "G8-OvO",
       "repo": "https://github.com/qwe28256/OvO_mcstark_alphalm_kernel",
       "branch": "14",
-      "device": "alphalm"
+      "device": "dev"
     },
     "withKernelSU": false,
     "toolchains": [
