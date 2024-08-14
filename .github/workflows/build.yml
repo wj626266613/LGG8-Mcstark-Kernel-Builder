@@ -163,7 +163,7 @@ jobs:
           make ${{ env.args }} ${{ env.DEFCONFIG_NAME }}
 
          
-      - name: "🎶 编译内核"
+      - name: "🎶 编译内核-1nd"
         continue-on-error: true
         working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
         env:
@@ -171,9 +171,33 @@ jobs:
         run: |
           echo "PATH Variable: $PATH"
           make ${args}
+
+      - name: "🎶 编译内核-2nd"
+        continue-on-error: true
+        working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
+        env:
+          args: ${{ steps.generate-args.outputs.args }}
+        run: |
+          echo "PATH Variable: $PATH"
           bash dtc.sh
-          make ${args}
+
+      - name: "🎶 编译内核-3nd"
+        continue-on-error: true
+        working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
+        env:
+          args: ${{ steps.generate-args.outputs.args }}
+        run: |
+          echo "PATH Variable: $PATH"
+          make {$args}
+
+      - name: "🎶 编译内核-4nd"
+        working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
+        env:
+          args: ${{ steps.generate-args.outputs.args }}
+        run: |
+          echo "PATH Variable: $PATH"
           bash lk.sh
+          echo "Success"
 
       - name: "O(∩_∩)O-打包刷机包"
         working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
