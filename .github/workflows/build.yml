@@ -162,6 +162,20 @@ jobs:
           echo "PATH Variable: $PATH"
           make ${{ env.args }} ${{ env.DEFCONFIG_NAME }}
 
+
+    
+      - name: "Debug"
+        working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
+        env:
+          args: ${{ steps.generate-args.outputs.args }}
+        run: |
+         pwd
+         ls
+         echo $args
+         nohup make ${args} > runoob.log 2>&1 &
+         ls
+
+         
       - name: "🎶 编译内核"
         working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
         env:
