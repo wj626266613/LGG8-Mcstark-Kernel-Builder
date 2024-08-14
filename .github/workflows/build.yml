@@ -179,10 +179,18 @@ jobs:
         run: |
          git clone https://github.com/qwe28256/AnyKernel3-alphalm --depth=1 kernelpack
          mkdir -p kernelpack/modules
-         find . -name *.ko
-         
+         cp -rf out/arch/arm64/boot/Image.gz kernelpack
+         zip -r out/kernelpack.zip ./kernelpack/*
+         echo "Done"
 
-
+      - name: "💛 上传 kernelpack"
+        uses: actions/upload-artifact@v3
+        with:
+          name: Image(${{ env.kernelDevice }}-${{ env.kernelName }}-${{ env.kernelBranch }})
+          path: ./${{ env.kernelDir }}/${{ env.OUT_DIR }}/kernelpack.zip
+          if-no-files-found: ignore
+          retention-days: 7
+          
       - name: "💛 上传 Image"
         uses: actions/upload-artifact@v3
         with:
