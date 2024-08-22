@@ -1,0 +1,226 @@
+name: "Android 13 Test Kenrnel"
+
+env:
+  CONFIGURATION: "repos.json"
+  OUT_DIR: "out"
+
+on:
+  workflow_dispatch:
+
+jobs:
+  Set-repos:
+    name: "读取 repos.json"
+    runs-on: ubuntu-latest
+    outputs:
+      repos: ${{ steps.generate-matrix.outputs.repos }}
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v3
+
+      - name: "Generate Matrix"
+        id: generate-matrix
+        run: |
+          echo "repos<<EOF" >> $GITHUB_OUTPUT
+          cat  ${{ env.CONFIGURATION }} >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+  Build-Kernel:
+    name: "编译内核"
+    runs-on: ubuntu-latest
+    needs:
+      - Set-repos
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        repos: ${{ fromJSON(needs.Set-repos.outputs.repos) }}
+    env:
+      kernelDir: ${{ matrix.repos.kernelSource.name }}_${{ matrix.repos.kernelSource.device }}
+
+      kernelName: ${{ matrix.repos.kernelSource.name }}
+      kernelRepo: ${{ matrix.repos.kernelSource.repo }}
+      kernelBranch: ${{ matrix.repos.kernelSource.branch }}
+      kernelDevice: ${{ matrix.repos.kernelSource.device }}
+
+      DEFCONFIG_NAME: a13_ovo_defconfig
+
+      withKernelSU: ${{ matrix.repos.withKernelSU }}
+    steps:
+      - name: "✨ 创建工作目录"
+        run: mkdir -p $kernelDir
+
+      - name: "⭐ 安装依赖"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential device-tree-compiler bc curl git zip ftp gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi libssl-dev lftp zstd wget libfl-dev python2 python3 libarchive-tools wget curl
+
+      - name: "克隆内核源码 => (${{ env.kernelRepo }})"
+        working-directory: ./${{ env.kernelDir }}
+        run: |
+          git clone --branch $kernelBranch $kernelRepo $kernelName --depth=1
+
+      - name: "获取工具链"
+        working-directory: ./${{ env.kernelDir }}
+        env:
+          toolchains: "${{ toJSON(matrix.repos.toolchains) }}"
+        run: |
+          toolchains_num="$(echo $toolchains | jq 'length')"
+          echo $toolchains_num
+          for ((i=0;i<toolchains_num;i++)); do
+            name=$(echo $toolchains | jq -r ".[$i].name")
+            repo=$(echo $toolchains | jq -r ".[$i].repo")
+            branch=$(echo $toolchains | jq -r ".[$i].branch")
+            wget https://github.com/qwe28256/LGG8-Mcstark-Kernel-Builder/releases/download/17.0/clang-17.tar.gz
+            tar zxvf clang-17.tar.gz
+            mv clang-17 $name
+            rm clang-17.tar.gz
+            echo "$(pwd)/$name/" >> $GITHUB_PATH
+            echo "$(pwd)/$name/bin" >> $GITHUB_PATH
+          done
+
+          echo "PATH Variable: $PATH"
+
+      - name: "😎 一些设置"
+        id: generate-args
+        working-directory: ./${{ env.kernelDir }}
+        env:
+          params: "${{ toJSON(matrix.repos.params) }}"
+          THREAD: $(nproc --all)
+        run: |
+          echo "PATH Variable: $PATH"
+          ARCH=$(echo $params | jq -r ".ARCH")
+          CROSS_COMPILE=$(echo $params | jq -r ".CROSS_COMPILE")
+          CROSS_COMPILE_COMPAT=$(echo $params | jq -r ".CROSS_COMPILE_COMPAT")
+          CROSS_COMPILE_ARM32=$(echo $params | jq -r ".CROSS_COMPILE_ARM32")
+          CLANG_TRIPLE=$(echo $params | jq -r ".CLANG_TRIPLE")
+          AR=$(echo $params | jq -r ".AR")
+          CC=$(echo $params | jq -r ".CC")
+
+          echo "ARCH=$ARCH" >> $GITHUB_ENV
+
+          args="-j16"
+          if [ -n "${{ env.OUT_DIR }}" ]; then
+            mkdir -p $(pwd)/${{ env.OUT_DIR }}
+            args="$args O=$(pwd)/${{ env.OUT_DIR }}"
+          fi
+          if [ -n "$ARCH" ]; then
+            args="$args ARCH=$ARCH"
+          fi
+          if [ -n "$CROSS_COMPILE" ]; then
+            args="$args CROSS_COMPILE=$CROSS_COMPILE"
+          fi
+          if [ -n "$CLANG_TRIPLE" ]; then
+            args="$args CLANG_TRIPLE=$CLANG_TRIPLE"
+          fi
+          if [ -n "$CROSS_COMPILE_COMPAT" ]; then
+            args="$args CROSS_COMPILE_ARM32=$CROSS_COMPILE_COMPAT"
+          fi
+          if [ -n "$AR" ]; then
+            args="$args AR=$AR"
+          fi
+          if [ -n "$CC" ]; then
+            args="$args CC=$CC"
+          fi
+          if [ -n "$NM" ]; then
+            args="$args NM=$NM"
+          fi
+          if [ -n "$STRIP" ]; then
+            args="$args STRIP=$STRIP"
+          fi
+          if [ -n "$OBJDUMP" ]; then
+            args="$args OBJDUMP=$OBJDUMP"
+          fi
+          if [ -n "$OBJCOPY" ]; then
+            args="$args OBJCOPY=$OBJCOPY"
+          fi
+          echo "args=$args" >> $GITHUB_OUTPUT
+
+      - name: "更新kernelsu"
+        working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
+        if: ${{ env.withKernelSU == 'true' }}
+        run: |
+          if [ -d "./KernelSU" ]; then
+            rm -rf "./KernelSU"
+          fi
+          if [ -d "./drivers/kernelsu" ]; then
+            rm -rf "./drivers/kernelsu"
+          fi
+
+          curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s v0.9.5
+
+          echo -e "\nCONFIG_KPROBES=n" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
+          echo -e "\nCONFIG_HAVE_KPROBES=y" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
+          echo -e "\nCONFIG_KPROBE_EVENTS=n" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
+
+          cat ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
+
+      - name: "初始化设备配置"
+        working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
+        env:
+          args: ${{ steps.generate-args.outputs.args }}
+        run: |
+          echo "PATH Variable: $PATH"
+          make ${{ env.args }} ${{ env.DEFCONFIG_NAME }}
+
+         
+      - name: "🎶 编译内核-1nd"
+        continue-on-error: true
+        working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
+        env:
+          args: ${{ steps.generate-args.outputs.args }}
+        run: |
+          echo "PATH Variable: $PATH"
+          make ${args}
+
+      - name: "🎶 编译内核-2nd"
+        continue-on-error: true
+        working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
+        env:
+          args: ${{ steps.generate-args.outputs.args }}
+        run: |
+          echo "PATH Variable: $PATH"
+          ls ../out/
+          ls -lh /usr/bin/dtc
+          cp -rf /usr/bin/dtc  ../out/scripts/dtc/dtc
+
+      - name: "🎶 编译内核-3nd"
+        working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
+        env:
+          args: ${{ steps.generate-args.outputs.args }}
+        run: |
+          echo "PATH Variable: $PATH"
+          bash lk.sh
+          echo "Build Success"
+
+      - name: "O(∩_∩)O-打包刷机包"
+        working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
+        run: |
+         git clone https://github.com/qwe28256/AnyKernel3-alphalm --depth=1 kernelpack
+         cp -rf ../out/arch/arm64/boot/Image.gz kernelpack
+         zip -r ../out/kernelpack.zip ./kernelpack/*
+         mv ./kernelpack ../out
+         echo "Done"
+
+      - name: "💛 上传 kernelpack"
+        uses: actions/upload-artifact@v3
+        with:
+          name: AnyKernel-v3-OvO-1
+          path: ./${{ env.kernelDir }}/${{ env.OUT_DIR }}/kernelpack
+          if-no-files-found: ignore
+          retention-days: 7
+          
+      - name: "💛 上传 Image"
+        uses: actions/upload-artifact@v3
+        with:
+          name: Image
+          path: ./${{ env.kernelDir }}/${{ env.OUT_DIR }}/arch/${{ env.ARCH }}/boot/Image
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: "💙 上传 Image.gz"
+        uses: actions/upload-artifact@v3
+        with:
+          name: Image.gz
+          path: ./${{ env.kernelDir }}/${{ env.OUT_DIR }}/arch/${{ env.ARCH }}/boot/Image.gz
+          if-no-files-found: ignore
+          retention-days: 7
